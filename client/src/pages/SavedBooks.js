@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Jumbotron, Container, CardColumns, Card, Button } from 'react-bootstrap';
 
-import { getMe, deleteBook } from '../utils/API';
+//import { getMe, deleteBook } from '../utils/API';
 import Auth from '../utils/auth';
 import { removeBookId } from '../utils/localStorage';
 
+import { useMutation, useQuery } from '@apollo/client';
+import { REMOVE_BOOK } from '../utils/mutations';
+import { QUERY_ME } from '../utils/queries';
+
 const SavedBooks = () => {
-  const [userData, setUserData] = useState({});
+  const [userDataInput, setUserData] = useState({});
+
+  const [removeBook, {error}] = useMutation(REMOVE_BOOK);
+  const { loading, data} = useQuery(QUERY_ME);
+  const userData = data?.me || [];
 
   // use this to determine if `useEffect()` hook needs to run again
-  const userDataLength = Object.keys(userData).length;
+  const userDataLength = Object.keys(userDataInput).length;
 
   useEffect(() => {
     const getUserData = async () => {
@@ -20,7 +28,7 @@ const SavedBooks = () => {
           return false;
         }
 
-        const response = await getMe(token);
+        const response = await QUERY_ME(token);
 
         if (!response.ok) {
           throw new Error('something went wrong!');
@@ -45,15 +53,12 @@ const SavedBooks = () => {
     }
 
     try {
-      const response = await deleteBook(bookId, token);
 
-      if (!response.ok) {
-        throw new Error('something went wrong!');
-      }
+    await removeBook({
+      variables: { bookId }
+    });
 
-      const updatedUser = await response.json();
-      setUserData(updatedUser);
-      // upon success, remove book's id from localStorage
+      
       removeBookId(bookId);
     } catch (err) {
       console.error(err);
@@ -61,7 +66,7 @@ const SavedBooks = () => {
   };
 
   // if data isn't here yet, say so
-  if (!userDataLength) {
+  if (!loading) {
     return <h2>LOADING...</h2>;
   }
 
@@ -95,6 +100,7 @@ const SavedBooks = () => {
             );
           })}
         </CardColumns>
+        {error && <div>Couldn't Save Book</div>}
       </Container>
     </>
   );
